@@ -1,0 +1,511 @@
+import type {
+  User,
+  Book,
+  Transaction,
+  Conversation,
+  Notification,
+  Review,
+  StatsData,
+} from "@/types";
+
+// ─── Genres ──────────────────────────────────────────────────────────────────
+
+export const GENRES = [
+  "Ficción",
+  "No ficción",
+  "Ciencia ficción",
+  "Fantasía",
+  "Terror",
+  "Romance",
+  "Historia",
+  "Biografía",
+  "Ciencia",
+  "Filosofía",
+  "Poesía",
+  "Infantil",
+  "Manga",
+  "Autoayuda",
+  "Economía",
+];
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+export const USERS: User[] = [
+  {
+    id: "u1",
+    name: "Ana Martínez",
+    email: "ana.martinez@mail.com",
+    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=ana",
+    location: "Lima, Perú",
+    bio: "Apasionada de la literatura latinoamericana y los clásicos del siglo XX.",
+    rating: 4.9,
+    reviewCount: 34,
+    booksPosted: 18,
+    joinedAt: "2023-03-15",
+  },
+  {
+    id: "u2",
+    name: "Carlos Vega",
+    email: "carlos.vega@mail.com",
+    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=carlos",
+    location: "Arequipa, Perú",
+    bio: "Coleccionista de ciencia ficción. Siempre buscando primeras ediciones.",
+    rating: 4.6,
+    reviewCount: 21,
+    booksPosted: 12,
+    joinedAt: "2023-07-22",
+  },
+  {
+    id: "u3",
+    name: "Lucía Herrera",
+    email: "lucia.herrera@mail.com",
+    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=lucia",
+    location: "Cusco, Perú",
+    bio: "Profesora de literatura. Donante habitual de libros de texto.",
+    rating: 5.0,
+    reviewCount: 47,
+    booksPosted: 31,
+    joinedAt: "2022-11-08",
+  },
+  {
+    id: "u4",
+    name: "Darlene",
+    email: "darlene@mail.com",
+    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=darlene",
+    location: "Trujillo, Perú",
+    bio: "Lectora voraz. Me gustan los thrillers, la fantasía épica y el manga.",
+    rating: 4.8,
+    reviewCount: 15,
+    booksPosted: 9,
+    joinedAt: "2024-01-10",
+  },
+];
+
+export const CURRENT_USER: User = USERS[3];
+
+// ─── Books ────────────────────────────────────────────────────────────────────
+// Portadas de Open Library: https://covers.openlibrary.org/b/id/{id}-L.jpg
+
+export const BOOKS: Book[] = [
+  {
+    id: "b1",
+    title: "Cien años de soledad",
+    author: "Gabriel García Márquez",
+    isbn: "9780060883287",
+    cover: "https://covers.openlibrary.org/b/id/8228631-L.jpg",
+    description:
+      "La obra cumbre del realismo mágico narra la historia de la familia Buendía a lo largo de siete generaciones en el pueblo ficticio de Macondo.",
+    genre: "Ficción",
+    year: 1967,
+    language: "Español",
+    condition: "good",
+    mode: "exchange",
+    ownerId: "u3",
+    location: "Lima, Perú",
+    createdAt: "2024-10-01",
+    isFeatured: true,
+  },
+  {
+    id: "b2",
+    title: "El principito",
+    author: "Antoine de Saint-Exupéry",
+    isbn: "9780156012195",
+    cover: "https://covers.openlibrary.org/b/id/10521270-L.jpg",
+    description:
+      "Un clásico atemporal sobre la amistad, el amor y la pérdida narrado a través de los ojos de un principito que viaja de planeta en planeta.",
+    genre: "Infantil",
+    year: 1943,
+    language: "Español",
+    condition: "like-new",
+    mode: "donate",
+    ownerId: "u1",
+    location: "Lima, Perú",
+    createdAt: "2024-10-14",
+  },
+  {
+    id: "b3",
+    title: "1984",
+    author: "George Orwell",
+    isbn: "9780451524935",
+    cover: "https://covers.openlibrary.org/b/id/8575708-L.jpg",
+    description:
+      "Distopía clásica que describe una sociedad totalitaria dominada por el Gran Hermano, donde el pensamiento libre es un crimen.",
+    genre: "Ciencia ficción",
+    year: 1949,
+    language: "Español",
+    condition: "good",
+    mode: "sell",
+    price: 8,
+    ownerId: "u2",
+    location: "Arequipa, Perú",
+    createdAt: "2024-10-20",
+    isFeatured: true,
+  },
+  {
+    id: "b4",
+    title: "Dune",
+    author: "Frank Herbert",
+    isbn: "9780441013593",
+    cover: "https://covers.openlibrary.org/b/id/8701710-L.jpg",
+    description:
+      "Épica de ciencia ficción ambientada en el planeta desértico Arrakis, donde el control de la especia melange define el destino del universo.",
+    genre: "Ciencia ficción",
+    year: 1965,
+    language: "Español",
+    condition: "like-new",
+    mode: "sell",
+    price: 12,
+    ownerId: "u2",
+    location: "Arequipa, Perú",
+    createdAt: "2024-11-03",
+  },
+  {
+    id: "b5",
+    title: "La sombra del viento",
+    author: "Carlos Ruiz Zafón",
+    isbn: "9780143034902",
+    cover: "https://covers.openlibrary.org/b/id/8579166-L.jpg",
+    description:
+      "En la Barcelona de posguerra, un niño descubre un misterioso libro que lo llevará a un laberinto de secretos y tragedias olvidadas.",
+    genre: "Ficción",
+    year: 2001,
+    language: "Español",
+    condition: "good",
+    mode: "exchange",
+    ownerId: "u1",
+    location: "Lima, Perú",
+    createdAt: "2024-11-10",
+    isFeatured: true,
+  },
+  {
+    id: "b6",
+    title: "El alquimista",
+    author: "Paulo Coelho",
+    isbn: "9780061122415",
+    cover: "https://covers.openlibrary.org/b/id/9255566-L.jpg",
+    description:
+      "Viaje alegórico de Santiago, un joven pastor andaluz que sueña con encontrar un tesoro en las pirámides de Egipto.",
+    genre: "Autoayuda",
+    year: 1988,
+    language: "Español",
+    condition: "acceptable",
+    mode: "donate",
+    ownerId: "u3",
+    location: "Cusco, Perú",
+    createdAt: "2024-11-18",
+  },
+  {
+    id: "b7",
+    title: "Harry Potter y la piedra filosofal",
+    author: "J.K. Rowling",
+    isbn: "9780439708180",
+    cover: "https://covers.openlibrary.org/b/id/8228250-L.jpg",
+    description:
+      "El inicio de la saga del mago más famoso de la literatura, desde su llegada a Hogwarts hasta el enfrentamiento con la oscuridad.",
+    genre: "Fantasía",
+    year: 1997,
+    language: "Español",
+    condition: "good",
+    mode: "sell",
+    price: 7,
+    ownerId: "u4",
+    location: "Trujillo, Perú",
+    createdAt: "2024-11-25",
+  },
+  {
+    id: "b8",
+    title: "Matar a un ruiseñor",
+    author: "Harper Lee",
+    isbn: "9780061743528",
+    cover: "https://covers.openlibrary.org/b/id/8228638-L.jpg",
+    description:
+      "Clásico de la literatura estadounidense que aborda la injusticia racial a través de los ojos de una niña en el sur de los años 30.",
+    genre: "Ficción",
+    year: 1960,
+    language: "Español",
+    condition: "like-new",
+    mode: "exchange",
+    ownerId: "u1",
+    location: "Lima, Perú",
+    createdAt: "2024-12-01",
+  },
+  {
+    id: "b9",
+    title: "El nombre de la rosa",
+    author: "Umberto Eco",
+    isbn: "9780156001311",
+    cover: "https://covers.openlibrary.org/b/id/12023978-L.jpg",
+    description:
+      "Novela histórica y filosófica ambientada en un monasterio medieval donde una serie de misteriosas muertes desafían la razón y la fe.",
+    genre: "Historia",
+    year: 1980,
+    language: "Español",
+    condition: "good",
+    mode: "sell",
+    price: 10,
+    ownerId: "u3",
+    location: "Cusco, Perú",
+    createdAt: "2024-12-08",
+    isFeatured: true,
+  },
+  {
+    id: "b10",
+    title: "Un mundo feliz",
+    author: "Aldous Huxley",
+    isbn: "9780060850524",
+    cover: "https://covers.openlibrary.org/b/id/8228645-L.jpg",
+    description:
+      "Distopía futurista que imagina una sociedad controlada por la estabilidad y el placer, donde la humanidad ha sacrificado la libertad.",
+    genre: "Ciencia ficción",
+    year: 1932,
+    language: "Español",
+    condition: "new",
+    mode: "sell",
+    price: 9,
+    ownerId: "u2",
+    location: "Arequipa, Perú",
+    createdAt: "2024-12-15",
+  },
+];
+
+export const MY_BOOKS: Book[] = BOOKS.filter(
+  (b) => b.ownerId === CURRENT_USER.id
+);
+
+// ─── Transactions ─────────────────────────────────────────────────────────────
+
+export const TRANSACTIONS: Transaction[] = [
+  {
+    id: "t1",
+    bookId: "b3",
+    sellerId: "u2",
+    buyerId: "u4",
+    mode: "sell",
+    status: "completed",
+    agreedPrice: 8,
+    createdAt: "2024-11-05",
+    updatedAt: "2024-11-07",
+  },
+  {
+    id: "t2",
+    bookId: "b1",
+    sellerId: "u3",
+    buyerId: "u4",
+    mode: "exchange",
+    status: "pending",
+    offeredBookId: "b7",
+    createdAt: "2024-12-10",
+    updatedAt: "2024-12-10",
+  },
+  {
+    id: "t3",
+    bookId: "b2",
+    sellerId: "u1",
+    buyerId: "u2",
+    mode: "donate",
+    status: "accepted",
+    createdAt: "2024-12-12",
+    updatedAt: "2024-12-13",
+  },
+  {
+    id: "t4",
+    bookId: "b9",
+    sellerId: "u3",
+    buyerId: "u1",
+    mode: "sell",
+    status: "completed",
+    agreedPrice: 10,
+    createdAt: "2024-12-18",
+    updatedAt: "2024-12-20",
+  },
+];
+
+// ─── Conversations ────────────────────────────────────────────────────────────
+
+export const CONVERSATIONS: Conversation[] = [
+  {
+    id: "c1",
+    participantIds: ["u4", "u2"],
+    bookId: "b3",
+    lastMessage: "¿Sigue disponible el libro?",
+    lastMessageAt: "2024-12-19T10:30:00Z",
+    unreadCount: 1,
+    messages: [
+      {
+        id: "m1",
+        conversationId: "c1",
+        senderId: "u4",
+        text: "Hola Carlos, ¿sigue disponible 1984?",
+        sentAt: "2024-12-19T10:28:00Z",
+        read: true,
+      },
+      {
+        id: "m2",
+        conversationId: "c1",
+        senderId: "u2",
+        text: "¡Hola Darlene! Sí, todavía está disponible.",
+        sentAt: "2024-12-19T10:29:00Z",
+        read: true,
+      },
+      {
+        id: "m3",
+        conversationId: "c1",
+        senderId: "u4",
+        text: "¿Sigue disponible el libro?",
+        sentAt: "2024-12-19T10:30:00Z",
+        read: false,
+      },
+    ],
+  },
+  {
+    id: "c2",
+    participantIds: ["u4", "u3"],
+    bookId: "b1",
+    lastMessage: "Te propongo intercambiarlo por Harry Potter.",
+    lastMessageAt: "2024-12-18T16:00:00Z",
+    unreadCount: 0,
+    messages: [
+      {
+        id: "m4",
+        conversationId: "c2",
+        senderId: "u4",
+        text: "Lucía, me encantaría intercambiar Cien años de soledad.",
+        sentAt: "2024-12-18T15:55:00Z",
+        read: true,
+      },
+      {
+        id: "m5",
+        conversationId: "c2",
+        senderId: "u4",
+        text: "Te propongo intercambiarlo por Harry Potter.",
+        sentAt: "2024-12-18T16:00:00Z",
+        read: true,
+      },
+    ],
+  },
+  {
+    id: "c3",
+    participantIds: ["u4", "u1"],
+    bookId: "b8",
+    lastMessage: "Perfecto, quedamos el sábado.",
+    lastMessageAt: "2024-12-17T09:15:00Z",
+    unreadCount: 2,
+    messages: [
+      {
+        id: "m6",
+        conversationId: "c3",
+        senderId: "u1",
+        text: "Hola, veo que te interesa Matar a un ruiseñor.",
+        sentAt: "2024-12-17T09:10:00Z",
+        read: true,
+      },
+      {
+        id: "m7",
+        conversationId: "c3",
+        senderId: "u4",
+        text: "Sí, ¿podemos quedar en Lima?",
+        sentAt: "2024-12-17T09:12:00Z",
+        read: true,
+      },
+      {
+        id: "m8",
+        conversationId: "c3",
+        senderId: "u1",
+        text: "Perfecto, quedamos el sábado.",
+        sentAt: "2024-12-17T09:15:00Z",
+        read: false,
+      },
+    ],
+  },
+];
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+export const NOTIFICATIONS: Notification[] = [
+  {
+    id: "n1",
+    userId: "u4",
+    type: "transaction",
+    title: "Intercambio aceptado",
+    body: "Lucía aceptó tu propuesta de intercambio por Cien años de soledad.",
+    read: false,
+    createdAt: "2024-12-19T08:00:00Z",
+    linkTo: "/transactions/t2",
+  },
+  {
+    id: "n2",
+    userId: "u4",
+    type: "message",
+    title: "Nuevo mensaje de Carlos",
+    body: "Carlos Vega te ha enviado un mensaje sobre 1984.",
+    read: false,
+    createdAt: "2024-12-19T10:29:00Z",
+    linkTo: "/messages/c1",
+  },
+  {
+    id: "n3",
+    userId: "u4",
+    type: "review",
+    title: "Nueva reseña recibida",
+    body: "Carlos Vega te dejó una reseña de 5 estrellas.",
+    read: true,
+    createdAt: "2024-11-08T12:00:00Z",
+    linkTo: "/profile/u4",
+  },
+  {
+    id: "n4",
+    userId: "u4",
+    type: "system",
+    title: "¡Bienvenida a ReadMe!",
+    body: "Explora miles de libros y conecta con lectores cerca de ti.",
+    read: true,
+    createdAt: "2024-01-10T09:00:00Z",
+    linkTo: "/explore",
+  },
+];
+
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+
+export const REVIEWS: Review[] = [
+  {
+    id: "r1",
+    reviewerId: "u2",
+    reviewedUserId: "u4",
+    transactionId: "t1",
+    rating: 5,
+    comment:
+      "Darlene es una persona muy puntual y el libro estaba en perfectas condiciones. Repetiremos sin duda.",
+    createdAt: "2024-11-08",
+  },
+  {
+    id: "r2",
+    reviewerId: "u4",
+    reviewedUserId: "u3",
+    transactionId: "t4",
+    rating: 5,
+    comment:
+      "Lucía es increíble, muy generosa y comunicativa. El libro llegó antes de lo esperado.",
+    createdAt: "2024-12-21",
+  },
+  {
+    id: "r3",
+    reviewerId: "u1",
+    reviewedUserId: "u3",
+    transactionId: "t3",
+    rating: 5,
+    comment:
+      "Excelente intercambio. Lucía explicó muy bien el estado del libro y todo fue transparente.",
+    createdAt: "2024-12-14",
+  },
+];
+
+// ─── Stats (últimos 6 meses) ──────────────────────────────────────────────────
+
+export const STATS_DATA: StatsData[] = [
+  { month: "Jul", transactions: 3, booksListed: 5, revenue: 22 },
+  { month: "Ago", transactions: 5, booksListed: 8, revenue: 47 },
+  { month: "Sep", transactions: 4, booksListed: 6, revenue: 35 },
+  { month: "Oct", transactions: 7, booksListed: 11, revenue: 63 },
+  { month: "Nov", transactions: 9, booksListed: 14, revenue: 81 },
+  { month: "Dic", transactions: 6, booksListed: 10, revenue: 58 },
+];
