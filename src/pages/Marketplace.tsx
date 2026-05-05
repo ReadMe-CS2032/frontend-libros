@@ -192,20 +192,12 @@ export default function Marketplace() {
   }, []);
 
   const filteredBooks = useMemo(() => {
-    let result = [...books];
-
-    if (submittedQuery.trim()) {
-      const q = submittedQuery.toLowerCase();
-      result = result.filter(
-        (b) => b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q)
-      );
-    }
+    const result = [...books];
     if (sortBy === "recent")     result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     if (sortBy === "price-asc")  result.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
     if (sortBy === "price-desc") result.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
-
     return result;
-  }, [books, submittedQuery, sortBy]);
+  }, [books, sortBy]);
 
   const genres = useMemo(() => categories.map((c) => c.name), [categories]);
 
@@ -307,8 +299,8 @@ export default function Marketplace() {
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{filteredBooks.length}</span>
-              {" "}libro{filteredBooks.length !== 1 ? "s" : ""} encontrado{filteredBooks.length !== 1 ? "s" : ""}
+              <span className="font-semibold text-foreground">{totalBooks}</span>
+              {" "}libro{totalBooks !== 1 ? "s" : ""} encontrado{totalBooks !== 1 ? "s" : ""}
             </p>
 
             {totalPages > 1 && (

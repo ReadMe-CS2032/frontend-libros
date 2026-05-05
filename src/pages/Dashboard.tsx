@@ -6,7 +6,7 @@ import {
   ArrowLeftRight,
   BookMarked,
   Star,
-  ShoppingBag,
+  Activity,
   MapPin,
   CalendarDays,
   MessageSquare,
@@ -37,7 +37,7 @@ import { getSolicitudesByUser } from "@/api/solicitudes";
 import { getTransactionsByUser } from "@/api/transactions";
 import { getReviewStatsForUser, getUserById } from "@/api/users";
 import type { Book, Conversation, Transaction, User } from "@/types";
-import { cn, formatPrice, formatRelativeTime } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
 import Avatar from "@/components/shared/Avatar";
 import BookCoverPlaceholder from "@/components/shared/BookCoverPlaceholder";
 import StarRating from "@/components/shared/StarRating";
@@ -208,7 +208,13 @@ export default function Dashboard() {
       setIsLoading(false);
     }
 
-    loadDashboard();
+    loadDashboard().catch((err) => {
+      if (!cancelled) {
+        console.error("[Dashboard] error inesperado:", err);
+        setError("Error inesperado al cargar el dashboard");
+        setIsLoading(false);
+      }
+    });
     return () => { cancelled = true; };
   }, [token, user?.id]);
 
@@ -229,8 +235,6 @@ export default function Dashboard() {
       : (user?.rating ?? 0);
 
     return {
-      revenue: currentMonth?.ventas ?? 0,
-      revenueTrend: pct(currentMonth?.ventas ?? 0, previousMonth?.ventas ?? 0),
       activeDeals: activeDeals.length,
       dealsTrend: pct(currentMonth?.intercambios ?? 0, previousMonth?.intercambios ?? 0),
       booksPosted: books.length,
@@ -278,12 +282,12 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 
         <KPICard
-          title={`Ventas de ${MONTH_LABEL}`}
-          value={formatPrice(kpis.revenue)}
-          trend={kpis.revenueTrend}
+          title={`Transacciones de ${MONTH_LABEL}`}
+          value={String(kpis.monthlyTransactions)}
+          trend={kpis.dealsTrend}
           trendBase="vs mes anterior"
-          icon={ShoppingBag}
-          footer={`${kpis.monthlyTransactions} transacciones`}
+          icon={Activity}
+          footer="intercambios completados"
           color="violet"
         />
 
@@ -430,7 +434,7 @@ function RecentTransactions({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/60 bg-muted/30">
-              {["Libro / Contraparte", "Tipo", "Fecha", "Monto", "Estado"].map((h) => (
+              {["Libro / Contraparte", "Tipo", "Fecha", "Estado"].map((h) => (
                 <th
                   key={h}
                   className="text-left text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-6 py-3 whitespace-nowrap"
@@ -493,23 +497,14 @@ function RecentTransactions({
                   {/* Date */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <p className="text-sm text-foreground tabular-nums">
-                      {new Intl.DateTimeFormat("es-PE", { day: "numeric", month: "short", year: "numeric" })
-                        .format(new Date(t.createdAt))}
+                      {t.createdAt
+                        ? new Intl.DateTimeFormat("es-PE", { day: "numeric", month: "short", year: "numeric" })
+                            .format(new Date(t.createdAt))
+                        : "—"}
                     </p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {formatRelativeTime(t.createdAt)}
+                      {t.createdAt ? formatRelativeTime(t.createdAt) : ""}
                     </p>
-                  </td>
-
-                  {/* Amount */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {t.agreedPrice != null ? (
-                      <span className="font-semibold text-foreground tabular-nums">
-                        {formatPrice(t.agreedPrice)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/60 italic">—</span>
-                    )}
                   </td>
 
                   {/* Status */}
@@ -560,12 +555,9 @@ function RecentTransactions({
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                {t.agreedPrice != null ? (
-                  <span className="text-sm font-semibold tabular-nums">{formatPrice(t.agreedPrice)}</span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-                <span className="text-[10px] text-muted-foreground">{formatRelativeTime(t.createdAt)}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {t.createdAt ? formatRelativeTime(t.createdAt) : ""}
+                </span>
               </div>
             </div>
           );
@@ -587,10 +579,10 @@ interface ProfileCardProps {
 function ProfileCard({ user, kpis }: ProfileCardProps) {
   if (!user) return null;
 
-  const joinedYear = new Intl.DateTimeFormat("es-PE", {
-    month: "long",
-    year: "numeric",
-  }).format(new Date(user.joinedAt));
+  const joinedDate = new Date(user.joinedAt);
+  const joinedYear = !Number.isNaN(joinedDate.getTime())
+    ? new Intl.DateTimeFormat("es-PE", { month: "long", year: "numeric" }).format(joinedDate)
+    : "—";
 
   const stats = [
     { label: "Libros",   value: kpis.booksPosted,  icon: BookMarked      },
@@ -674,7 +666,7 @@ function ProfileCard({ user, kpis }: ProfileCardProps) {
 function BarChartCard({ data }: { data: DashboardMonth[] }) {
   const barData = data.map((d, i) => ({
     month: d.month,
-    ingresos: d.ventas,
+    libros: d.booksListed,
     isCurrent: i === data.length - 1,
   }));
 
@@ -682,14 +674,14 @@ function BarChartCard({ data }: { data: DashboardMonth[] }) {
     <div className="rounded-2xl border border-border bg-white p-6 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Ingresos mensuales</h3>
+          <h3 className="text-sm font-semibold text-foreground">Libros publicados por mes</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Ventas en soles — últimos 6 meses
+            Publicaciones — últimos 6 meses
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="w-3 h-3 rounded-sm bg-violet-600 flex-shrink-0" />
-          <span className="text-xs text-muted-foreground">Ingresos (S/)</span>
+          <span className="text-xs text-muted-foreground">Libros</span>
         </div>
       </div>
 
@@ -733,7 +725,7 @@ function BarChartCard({ data }: { data: DashboardMonth[] }) {
               cursor={{ fill: "#f8fafc", radius: 8 }}
             />
 
-            <Bar dataKey="ingresos" radius={[6, 6, 0, 0]} name="Ingresos">
+            <Bar dataKey="libros" radius={[6, 6, 0, 0]} name="Libros publicados">
               {barData.map((entry, index) => (
                 <Cell
                   key={index}
@@ -758,10 +750,10 @@ function BarTooltip({ active, payload, label }: TooltipProps<number, string>) {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-violet-600 flex-shrink-0" />
-          <span className="text-xs text-muted-foreground">Ingresos</span>
+          <span className="text-xs text-muted-foreground">Libros</span>
         </div>
         <span className="text-xs font-semibold text-foreground tabular-nums">
-          S/ {payload[0].value}
+          {payload[0].value}
         </span>
       </div>
     </div>
@@ -783,7 +775,7 @@ function AreaChartCard({ data }: { data: DashboardMonth[] }) {
           </p>
         </div>
         <div className="flex items-center gap-5 flex-shrink-0">
-          <LegendDot color="#7c3aed" label="Ventas (S/)" />
+          <LegendDot color="#7c3aed" label="Libros publicados" />
           <LegendDot color="#3b82f6" label="Intercambios" />
         </div>
       </div>
@@ -828,8 +820,8 @@ function AreaChartCard({ data }: { data: DashboardMonth[] }) {
 
           <Area
             type="monotone"
-            dataKey="ventas"
-            name="Ventas"
+            dataKey="booksListed"
+            name="Libros publicados"
             stroke="#7c3aed"
             strokeWidth={2}
             fill="url(#gradVentas)"
@@ -874,7 +866,7 @@ function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) 
               <span className="text-xs text-muted-foreground">{entry.name}</span>
             </div>
             <span className="text-xs font-semibold text-foreground tabular-nums">
-              {entry.dataKey === "ventas" ? `S/ ${entry.value}` : entry.value}
+              {entry.value}
             </span>
           </div>
         ))}

@@ -9,32 +9,12 @@ import { CONVERSATIONS } from "@/data/mock";
 const TRANSACTIONS_API_URL =
   import.meta.env.VITE_TRANSACTIONS_API_URL?.trim() || "http://localhost:8006/api";
 
-interface BackendCategory {
-  id: number;
-  name: string;
-  description?: string | null;
-}
-
-interface BackendBook {
-  id: number;
-  userId: number;
-  title: string;
-  author: string;
-  category?: BackendCategory | null;
-  description?: string | null;
-  photoUrl?: string | null;
-  price?: number | null;
-  available?: boolean | null;
-  active?: boolean | null;
-  createdAt?: string | null;
-}
-
 interface BackendTransaction {
   id: number;
-  book?: BackendBook | null;
-  buyerId: number;
-  sellerId: number;
-  createdAt?: string | null;
+  book_id: number;
+  buyer_id: number;
+  seller_id: number;
+  created_at?: string | null;
 }
 
 interface BackendTransactionPayload {
@@ -91,18 +71,15 @@ async function requestJson<T>(
 }
 
 function mapBackendTransaction(transaction: BackendTransaction): Transaction {
-  const bookId = transaction.book?.id ? String(transaction.book.id) : "";
-  const createdAt = transaction.createdAt ?? "";
-  const isSell = typeof transaction.book?.price === "number";
-
+  const createdAt = transaction.created_at ?? "";
   return {
     id: String(transaction.id),
-    bookId,
-    sellerId: String(transaction.sellerId),
-    buyerId: String(transaction.buyerId),
-    mode: isSell ? "sell" : "",
+    bookId: String(transaction.book_id),
+    sellerId: String(transaction.seller_id),
+    buyerId: String(transaction.buyer_id),
+    mode: "",
     status: "completed",
-    agreedPrice: isSell ? Number(transaction.book?.price) : undefined,
+    agreedPrice: undefined,
     createdAt,
     updatedAt: createdAt,
   };

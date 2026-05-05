@@ -184,17 +184,13 @@ export async function getBooks(
   categoryId?: number
 ): Promise<ApiResponse<Book[]>> {
   try {
-    const hasSearch = !!filters.query?.trim();
-    const searchParam = hasSearch
-      ? `&search=${encodeURIComponent(filters.query!.trim())}`
+    const searchParam = filters.query?.trim()
+      ? `&search=${encodeURIComponent(filters.query.trim())}`
       : "";
     const categoryParam = categoryId ? `&category=${categoryId}` : "";
-    // When searching, fetch all matches in one shot (no pagination needed)
-    const effectivePage = hasSearch ? 1 : page;
-    const effectiveSize = hasSearch ? 200 : pageSize;
 
     const raw = await requestJson<BackendPaginatedResponse<BackendBook>>(
-      `/books?page=${effectivePage}&size=${effectiveSize}${searchParam}${categoryParam}`,
+      `/books?page=${page}&size=${pageSize}${searchParam}${categoryParam}`,
       token
     );
 
@@ -208,7 +204,7 @@ export async function getBooks(
     return {
       ok: true,
       data: sorted,
-      meta: { total, page: effectivePage, pageSize: effectiveSize, totalPages },
+      meta: { total, page, pageSize, totalPages },
     };
   } catch (error) {
     return fail(
@@ -343,6 +339,36 @@ export async function deleteBook(
     return fail(
       error instanceof Error ? error.message : "No se pudo eliminar el libro"
     );
+  }
+}
+
+export async function uploadBookPhoto(
+  id: string,
+  token: string,
+  photo: File
+): Promise<ApiResponse<Book>> {
+  try {
+    const formData = new FormData();
+    formData.append("photo", photo);
+
+    const response = await fetch(`${BOOKS_API_URL}/books/${id}/photo`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const payload = ((await response.json().catch(() => null)) as
+      | BackendBook
+      | { error?: string }
+      | null) ?? null;
+
+    if (!response.ok) {
+      return fail((payload as { error?: string })?.error || "No se pudo subir la foto de portada");
+    }
+
+    return ok(mapBackendBook(payload as BackendBook));
+  } catch {
+    return fail("No se pudo conectar con el servicio de libros");
   }
 }
 

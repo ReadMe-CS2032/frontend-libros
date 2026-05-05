@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { getCategories } from "@/api/categories";
-import { createBook, getBooks, saveLocalBookCover } from "@/api/books";
+import { createBook, getBooks, uploadBookPhoto } from "@/api/books";
 import type { BookMode } from "@/types";
 import {
   cn,
@@ -83,6 +83,15 @@ function validate(step: Step, d: FormData) {
     if (d.genres.length === 0) e.genres = "Selecciona al menos un género.";
   }
   return e;
+}
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, data] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+  const bytes = atob(data);
+  const array = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) array[i] = bytes.charCodeAt(i);
+  return new Blob([array], { type: mime });
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -255,6 +264,7 @@ export default function AddBookPage() {
     if (!currentUser || !token) return;
     setPublishing(true);
     setPublishError(null);
+
     const result = await createBook({
       title:       form.title.trim(),
       author:      form.author.trim(),
@@ -270,15 +280,24 @@ export default function AddBookPage() {
       location:    currentUser.location,
       isFeatured:  false,
     }, token);
-    setPublishing(false);
-    if (result.ok) {
-      if (localCover) {
-        saveLocalBookCover(result.data.id, localCover);
-      }
-      navigate(`/libro/${result.data.id}`);
-    } else {
+
+    if (!result.ok) {
+      setPublishing(false);
       setPublishError(result.error ?? "No se pudo publicar el libro");
+      return;
     }
+
+    if (localCover) {
+      const blob = dataUrlToBlob(localCover);
+      const file = new File([blob], "cover.jpg", { type: "image/jpeg" });
+      const photoResult = await uploadBookPhoto(result.data.id, token, file);
+      if (!photoResult.ok) {
+        setPublishError(photoResult.error ?? "Libro publicado, pero no se pudo subir la portada");
+      }
+    }
+
+    setPublishing(false);
+    navigate(`/libro/${result.data.id}`);
   }
 
   const progress = ((step - 1) / 2) * 100;
