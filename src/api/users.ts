@@ -3,9 +3,9 @@ import { USERS, REVIEWS, NOTIFICATIONS } from "@/data/mock";
 import { mapBackendUser } from "@/api/auth";
 
 const USERS_API_URL =
-  import.meta.env.VITE_USERS_API_URL?.trim() || "http://localhost:8001/api";
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8001/api";
 const REVIEWS_API_URL =
-  import.meta.env.VITE_TRANSACTIONS_API_URL?.trim() || "http://localhost:8006/api";
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8006/api";
 
 const delay = (ms = 400) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));

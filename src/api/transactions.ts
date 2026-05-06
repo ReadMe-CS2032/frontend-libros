@@ -7,7 +7,7 @@ import type {
 import { CONVERSATIONS } from "@/data/mock";
 
 const TRANSACTIONS_API_URL =
-  import.meta.env.VITE_TRANSACTIONS_API_URL?.trim() || "http://localhost:8006/api";
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8006/api";
 
 interface BackendTransaction {
   id: number;

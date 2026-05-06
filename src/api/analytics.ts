@@ -1,7 +1,7 @@
 import { useAuthStore } from "@/store/useAuthStore";
 
 const ANALYTICS_API_URL =
-  import.meta.env.VITE_MS5_URL?.trim() || "http://localhost:8005";
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8005/api";
 
 async function requestAnalytics<T>(path: string): Promise<T> {
   const token = useAuthStore.getState().token;

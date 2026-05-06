@@ -1,7 +1,7 @@
 import type { ApiResponse, Conversation, Message, SolicitudStatus } from "@/types";
 
 const SOLICITUDES_API_URL =
-  import.meta.env.VITE_SOLICITUDES_API_URL?.trim() || "http://localhost:8003/api";
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8003/api";
 
 interface BackendSolicitudMessage {
   from: number;

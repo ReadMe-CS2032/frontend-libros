@@ -1,7 +1,7 @@
 import type { ApiResponse, Category } from "@/types";
 
 const BOOKS_API_URL =
-  import.meta.env.VITE_BOOKS_API_URL?.trim() || "http://localhost:8002/api";
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8002/api";
 
 
 interface BackendCategory {

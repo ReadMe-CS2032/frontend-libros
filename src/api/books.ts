@@ -1,7 +1,7 @@
 import type { ApiResponse, Book, BookFilters, BookMode, BookCondition } from "@/types";
 
 const BOOKS_API_URL =
-  import.meta.env.VITE_BOOKS_API_URL?.trim() || "http://localhost:8002/api";
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8002/api";
 const LOCAL_BOOK_COVER_PREFIX = "book-local-cover:";
 
 

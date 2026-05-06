@@ -2,7 +2,7 @@ import { mapBackendUser } from "@/api/auth";
 import type { ApiResponse, User } from "@/types";
 
 const ORCHESTRATOR_API_URL =
-  import.meta.env.VITE_ORCHESTRATOR_API_URL?.trim() || "http://localhost:8004/api";
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8004/api";
 
 interface BackendZone {
   id: number;

@@ -1,7 +1,7 @@
 import type { User } from "@/types";
 
 const USERS_API_URL =
-  import.meta.env.VITE_USERS_API_URL?.trim() || "http://localhost:8001/api";
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8001/api";
 
 interface BackendZone {
   id: number;
