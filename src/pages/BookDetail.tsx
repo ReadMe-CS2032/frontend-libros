@@ -171,16 +171,21 @@ export default function BookDetailPage() {
 
     setActionError(null);
     setIsSubmitting(true);
+    const messageByMode: Record<string, string> = {
+      sell:     `Hola, estoy interesado en comprar "${book.title}".`,
+      exchange: `Hola, me gustaría proponer un intercambio por "${book.title}".`,
+      donate:   `Hola, estoy interesado en la donación de "${book.title}".`,
+    };
     const response = await createPurchaseOrder(
       {
         bookId: book.id,
-        message: `Hola, estoy interesado en comprar "${book.title}".`,
+        message: messageByMode[book.mode] ?? `Hola, estoy interesado en "${book.title}".`,
       },
       token
     );
 
     if (!response.ok) {
-      setActionError(response.error || "No se pudo procesar la compra.");
+      setActionError(response.error || "No se pudo procesar la solicitud.");
       setIsSubmitting(false);
       return;
     }

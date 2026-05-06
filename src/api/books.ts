@@ -101,7 +101,7 @@ async function requestJson<T>(
 
 function mapBackendBook(book: BackendBook): Book {
   const hasPrice = typeof book.price === "number" && !Number.isNaN(book.price);
-  const mode: BookMode = hasPrice ? "sell" : "";
+  const mode: BookMode = hasPrice ? "sell" : "exchange";
   const bookId = String(book.id);
   const localCover = getLocalBookCover(bookId);
 
