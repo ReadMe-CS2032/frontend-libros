@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Library, BookMarked, Eye, Bookmark, TrendingUp,
   Tag, Repeat2, BookLock, Edit2, MapPin, Gift, Trash2, EyeOff,
@@ -39,6 +40,7 @@ const MOCK_SAVED_TREND = 12;
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LibraryPage() {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
   const [activeTab, setActiveTab] = useState<LibraryTab>("all");
@@ -285,6 +287,7 @@ export default function LibraryPage() {
             onDelete={() => handleDeleteBook(book)}
             onEdit={() => handleEditBook(book)}
             onToggleAvailability={() => handleToggleAvailability(book)}
+            onView={() => navigate(`/libro/${book.id}`)}
           />
         ))}
       </div>
@@ -302,6 +305,7 @@ interface LibraryBookCardProps {
   onDelete: () => void;
   onEdit: () => void;
   onToggleAvailability: () => void;
+  onView: () => void;
 }
 
 function LibraryBookCard({
@@ -311,6 +315,7 @@ function LibraryBookCard({
   onDelete,
   onEdit,
   onToggleAvailability,
+  onView,
 }: LibraryBookCardProps) {
   const ModeIcon = MODE_ICONS[book.mode] ?? Tag;
 
@@ -334,7 +339,7 @@ function LibraryBookCard({
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors duration-200 flex items-end justify-center gap-2 pb-3 opacity-0 group-hover:opacity-100">
           <button
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 text-foreground text-xs font-semibold shadow hover:bg-white transition-colors"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onView(); }}
           >
             <Eye className="w-3 h-3" />
             Ver
