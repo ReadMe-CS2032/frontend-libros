@@ -1,10 +1,7 @@
 import type {
   ApiResponse,
   Transaction,
-  Conversation,
-  Message,
 } from "@/types";
-import { CONVERSATIONS } from "@/data/mock";
 
 const TRANSACTIONS_API_URL =
   import.meta.env.VITE_API_URL?.trim() || "http://localhost:8006/api";
@@ -208,59 +205,3 @@ export async function getTransactionsByBook(
   }
 }
 
-// ─── Conversations ────────────────────────────────────────────────────────────
-
-const delay = (ms = 400) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-export async function getConversationsByUser(
-  userId: string
-): Promise<ApiResponse<Conversation[]>> {
-  await delay(350);
-  const convs = CONVERSATIONS.filter((c) =>
-    c.participantIds.includes(userId)
-  );
-  return ok(convs, convs.length);
-}
-
-export async function getConversationById(
-  id: string
-): Promise<ApiResponse<Conversation>> {
-  await delay(300);
-  const conv = CONVERSATIONS.find((c) => c.id === id);
-  if (!conv) return fail(`Conversation "${id}" not found`);
-  return ok(conv);
-}
-
-export async function sendMessage(
-  conversationId: string,
-  senderId: string,
-  text: string
-): Promise<ApiResponse<Message>> {
-  await delay(250);
-  const conv = CONVERSATIONS.find((c) => c.id === conversationId);
-  if (!conv) return fail(`Conversation "${conversationId}" not found`);
-
-  const message: Message = {
-    id: `m${Date.now()}`,
-    conversationId,
-    senderId,
-    text,
-    sentAt: new Date().toISOString(),
-    read: false,
-  };
-  return ok(message);
-}
-
-export async function markConversationRead(
-  conversationId: string,
-  userId: string
-): Promise<ApiResponse<boolean>> {
-  await delay(200);
-  const conv = CONVERSATIONS.find((c) => c.id === conversationId);
-  if (!conv) return fail(`Conversation "${conversationId}" not found`);
-  if (!conv.participantIds.includes(userId)) {
-    return fail("User is not a participant in this conversation");
-  }
-  return ok(true);
-}

@@ -10,7 +10,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
-import { GENRES } from "@/data/mock";
 import { loginUser, registerUser } from "@/api/auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,11 +21,11 @@ interface FormData {
   confirmPassword: string;
   username: string;
   location: string;
-  genres: string[];
 }
 
 type Step1Errors = Partial<Pick<FormData, "name" | "email" | "password" | "confirmPassword">>;
 type Step2Errors = Partial<Pick<FormData, "username" | "location">>;
+
 
 // ─── Password strength ────────────────────────────────────────────────────────
 
@@ -93,10 +92,10 @@ function validateStep2(data: FormData): Step2Errors {
 
 const INITIAL: FormData = {
   name: "", email: "", password: "", confirmPassword: "",
-  username: "", location: "", genres: [],
+  username: "", location: "",
 };
 
-const STEP_LABELS = ["Tu cuenta", "Perfil", "Intereses"];
+const STEP_LABELS = ["Tu cuenta", "Perfil"];
 
 export default function Register() {
   const navigate = useNavigate();
@@ -122,24 +121,19 @@ export default function Register() {
       const errs = validateStep1(data);
       if (Object.keys(errs).length > 0) { setErrors1(errs); return; }
       setErrors1({});
+      setStep(2);
     }
-    if (step === 2) {
-      const errs = validateStep2(data);
-      if (Object.keys(errs).length > 0) { setErrors2(errs); return; }
-      setErrors2({});
-    }
-    setStep((s) => s + 1);
   }
 
-  async function handleSubmit(skip = false) {
-    setIsSubmitting(true);
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
     setSubmitError(null);
+    const errs = validateStep2(data);
+    if (Object.keys(errs).length > 0) { setErrors2(errs); return; }
+    setErrors2({});
 
+    setIsSubmitting(true);
     try {
-      if (skip) {
-        update({ genres: [] });
-      }
-
       await registerUser({
         name: data.name.trim(),
         email: data.email.trim(),
@@ -196,27 +190,11 @@ export default function Register() {
               <Step2
                 data={data}
                 errors={errors2}
+                isSubmitting={isSubmitting}
                 onChange={update}
                 clearError={(k) => setErrors2((p) => ({ ...p, [k]: undefined }))}
                 onBack={() => setStep(1)}
-                onSubmit={handleNext}
-              />
-            )}
-            {step === 3 && (
-              <Step3
-                selected={data.genres}
-                isSubmitting={isSubmitting}
-                onToggle={(g) => {
-                  const next = data.genres.includes(g)
-                    ? data.genres.filter((x) => x !== g)
-                    : data.genres.length < 5
-                    ? [...data.genres, g]
-                    : data.genres;
-                  update({ genres: next });
-                }}
-                onBack={() => setStep(2)}
-                onSubmit={() => handleSubmit(false)}
-                onSkip={() => handleSubmit(true)}
+                onSubmit={handleSubmit}
               />
             )}
           </div>
@@ -377,7 +355,8 @@ function Step1({
         />
       </Field>
 
-      <NavButtons next="Continuar" />
+      <NavButtons next="Continuar"/>
+
     </form>
   );
 }
@@ -387,13 +366,14 @@ function Step1({
 interface Step2Props {
   data: FormData;
   errors: Step2Errors;
+  isSubmitting: boolean;
   onChange: (p: Partial<FormData>) => void;
   clearError: (k: keyof Step2Errors) => void;
   onBack: () => void;
   onSubmit: (e: FormEvent) => void;
 }
 
-function Step2({ data, errors, onChange, clearError, onBack, onSubmit }: Step2Props) {
+function Step2({ data, errors, isSubmitting, onChange, clearError, onBack, onSubmit }: Step2Props) {
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-5">
       <StepHeader
@@ -436,76 +416,6 @@ function Step2({ data, errors, onChange, clearError, onBack, onSubmit }: Step2Pr
         />
       </Field>
 
-      <NavButtons back="Atrás" next="Continuar" onBack={onBack} />
-    </form>
-  );
-}
-
-// ─── Step 3 ───────────────────────────────────────────────────────────────────
-
-interface Step3Props {
-  selected: string[];
-  isSubmitting: boolean;
-  onToggle: (g: string) => void;
-  onBack: () => void;
-  onSubmit: () => void;
-  onSkip: () => void;
-}
-
-function Step3({ selected, isSubmitting, onToggle, onBack, onSubmit, onSkip }: Step3Props) {
-  return (
-    <div className="space-y-5">
-      <StepHeader
-        title="¿Qué te gusta leer?"
-        subtitle="Selecciona hasta 5 géneros favoritos"
-      />
-
-      {/* Counter */}
-      <div className="flex items-center justify-between text-xs font-medium">
-        <span className="text-muted-foreground">
-          {selected.length === 0 ? "Ninguno seleccionado" : `${selected.length} seleccionado${selected.length > 1 ? "s" : ""}`}
-        </span>
-        <span className={selected.length >= 5 ? "text-violet-600" : "text-muted-foreground"}>
-          {selected.length} / 5
-        </span>
-      </div>
-
-      {/* Genre pills */}
-      <div className="flex flex-wrap gap-2">
-        {GENRES.map((genre) => {
-          const isSelected = selected.includes(genre);
-          const isDisabled = !isSelected && selected.length >= 5;
-
-          return (
-            <button
-              key={genre}
-              type="button"
-              disabled={isDisabled}
-              onClick={() => onToggle(genre)}
-              className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all duration-150
-                ${
-                  isSelected
-                    ? "bg-violet-600 border-violet-600 text-white shadow-sm shadow-violet-200"
-                    : isDisabled
-                    ? "bg-muted border-border text-muted-foreground/50 cursor-not-allowed"
-                    : "bg-white border-border text-foreground hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
-                }`}
-            >
-              {isSelected && <Check className="inline w-3 h-3 mr-1 -mt-0.5" />}
-              {genre}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Tip when 5 selected */}
-      {selected.length >= 5 && (
-        <p className="text-xs text-violet-600 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
-          Máximo alcanzado. Deselecciona uno para cambiar tu elección.
-        </p>
-      )}
-
-      {/* Navigation */}
       <div className="flex items-center justify-between pt-2 gap-3">
         <button
           type="button"
@@ -515,37 +425,25 @@ function Step3({ selected, isSubmitting, onToggle, onBack, onSubmit, onSkip }: S
           <ChevronLeft className="w-4 h-4" />
           Atrás
         </button>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onSkip}
-            disabled={isSubmitting}
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-4 py-2.5 rounded-xl hover:bg-muted disabled:opacity-50"
-          >
-            Omitir
-          </button>
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={isSubmitting || selected.length === 0}
-            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all hover:shadow-md hover:shadow-violet-200 active:scale-[0.98]"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Creando cuenta…
-              </>
-            ) : (
-              <>
-                Crear cuenta
-                <ChevronRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all hover:shadow-md hover:shadow-violet-200 active:scale-[0.98]"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Creando cuenta…
+            </>
+          ) : (
+            <>
+              Crear cuenta
+              <ChevronRight className="w-4 h-4" />
+            </>
+          )}
+        </button>
       </div>
-    </div>
+    </form>
   );
 }
 
@@ -622,29 +520,9 @@ function PasswordInput({
   );
 }
 
-function NavButtons({
-  back,
-  next,
-  onBack,
-}: {
-  back?: string;
-  next: string;
-  onBack?: () => void;
-}) {
+function NavButtons({ next }: { next: string }) {
   return (
-    <div className="flex items-center justify-between pt-2 gap-3">
-      {back && onBack ? (
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-4 py-2.5 rounded-xl hover:bg-muted"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          {back}
-        </button>
-      ) : (
-        <div />
-      )}
+    <div className="flex justify-end pt-2">
       <button
         type="submit"
         className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all hover:shadow-md hover:shadow-violet-200 active:scale-[0.98]"

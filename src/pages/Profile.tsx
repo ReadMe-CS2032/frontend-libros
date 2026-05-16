@@ -6,7 +6,6 @@ import {
   MessageSquare, Tag, Repeat2, Gift,
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
-import { USERS } from "@/data/mock";
 import { getBooksByOwner } from "@/api/books";
 import { getTransactionsByUser } from "@/api/transactions";
 import { getCurrentUser, getReviewStatsForUser, getReviewsForUser, getUserById } from "@/api/users";
@@ -69,16 +68,7 @@ export default function ProfilePage() {
   const profileId    = id ?? currentUser?.id;
   const isOwnProfile = profileId === currentUser?.id;
   const fallbackProfile = useMemo(
-    () => {
-      if (isOwnProfile) {
-        return currentUser ?? USERS[0];
-      }
-
-      return (
-        (profileId ? USERS.find((u) => u.id === profileId) : undefined) ??
-        buildMissingProfile(profileId, currentUser)
-      );
-    },
+    () => buildMissingProfile(profileId, currentUser),
     [currentUser, isOwnProfile, profileId]
   );
   const [profile, setProfile] = useState<User>(fallbackProfile);
@@ -97,9 +87,7 @@ export default function ProfilePage() {
 
     let cancelled = false;
     const pid = profileId;
-    const staticFallback = isOwnProfile
-      ? currentUser ?? USERS[0]
-      : USERS.find((u) => u.id === pid) ?? buildMissingProfile(pid, currentUser);
+    const staticFallback = buildMissingProfile(pid, currentUser);
 
     async function loadProfile() {
       if (!token) {

@@ -95,6 +95,62 @@ export async function acceptOrder(
   }
 }
 
+export async function rejectOrder(
+  solicitudId: string,
+  token: string
+): Promise<ApiResponse<void>> {
+  try {
+    const response = await fetch(`${ORCHESTRATOR_API_URL}/orders/${solicitudId}/reject`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const payloadJson =
+      ((await response.json().catch(() => null)) as
+        | { error?: string }
+        | null) ?? null;
+
+    if (!response.ok) {
+      return fail(payloadJson?.error || "No se pudo rechazar la solicitud");
+    }
+
+    return ok(undefined as unknown as void);
+  } catch {
+    return fail("No se pudo conectar con el orquestador");
+  }
+}
+
+export async function cancelOrder(
+  solicitudId: string,
+  token: string
+): Promise<ApiResponse<void>> {
+  try {
+    const response = await fetch(`${ORCHESTRATOR_API_URL}/orders/${solicitudId}/cancel`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const payloadJson =
+      ((await response.json().catch(() => null)) as
+        | { error?: string }
+        | null) ?? null;
+
+    if (!response.ok) {
+      return fail(payloadJson?.error || "No se pudo cancelar la solicitud");
+    }
+
+    return ok(undefined as unknown as void);
+  } catch {
+    return fail("No se pudo conectar con el orquestador");
+  }
+}
+
 export async function getSellerProfileByBookId(
   bookId: string,
   token: string

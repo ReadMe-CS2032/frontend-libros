@@ -4,29 +4,26 @@ import {
   Send,
   Search,
   ArrowLeft,
-  BookOpen,
   MessageCircle,
   ShoppingCart,
   CheckCircle2,
-  PackageCheck,
-  HandshakeIcon,
   Clock,
   Star,
+  XCircle,
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { getBookById } from "@/api/books";
 import { getSolicitudesByUser, getSolicitudById, sendSolicitudMessage, updateSolicitudStatus } from "@/api/solicitudes";
 import { getUserById, createReview, getReviewsForUser } from "@/api/users";
-import { acceptOrder } from "@/api/orders";
+import { acceptOrder, rejectOrder, cancelOrder } from "@/api/orders";
 import { getTransactionsByBook } from "@/api/transactions";
 import type { Book, Conversation, Message, User } from "@/types";
 import Avatar from "@/components/shared/Avatar";
+import BookCoverPlaceholder from "@/components/shared/BookCoverPlaceholder";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import {
-  createPickupConfirmSystemMessage,
   createPurchaseAcceptSystemMessage,
   getConversationPreview,
-  getConversationWorkflowState,
   getVisibleConversationMessages,
 } from "@/lib/solicitudWorkflow";
 
@@ -34,6 +31,13 @@ const timeFormatter = new Intl.DateTimeFormat("es-PE", {
   hour: "2-digit",
   minute: "2-digit",
 });
+
+const STATUS_META: Record<string, { label: string; class: string }> = {
+  pendiente: { label: "Pendiente", class: "bg-amber-50 text-amber-700 border-amber-200" },
+  aceptada:  { label: "Aceptada",  class: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  rechazada: { label: "Rechazada", class: "bg-red-50 text-red-600 border-red-200" },
+  cancelada: { label: "Cancelada", class: "bg-muted text-muted-foreground border-border" },
+};
 
 function msgTime(iso: string) {
   return timeFormatter.format(new Date(iso));
@@ -59,7 +63,8 @@ export default function MessagesPage() {
   const [isLoading, setIsLoading] = useState(Boolean(currentUser?.id && token));
   const [error, setError] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // review state
   const [transactionIdBySolicitud, setTransactionIdBySolicitud] = useState<Record<string, string>>({});
@@ -213,7 +218,6 @@ export default function MessagesPage() {
   const book = selected ? booksById[selected.bookId] : null;
   const peerId = selected && currentUser ? otherParticipant(selected, currentUser.id) : null;
   const peer = peerId ? usersById[peerId] : null;
-  const selectedWorkflow = selected ? getConversationWorkflowState(selected) : null;
   const selectedMessages = selected ? getVisibleConversationMessages(selected.messages) : [];
 
   const filtered = useMemo(() => {
@@ -269,7 +273,7 @@ export default function MessagesPage() {
   }
 
   async function handleAcceptPurchase() {
-    if (!selectedId || !token || !currentUser?.id || !selected || !selectedWorkflow) return;
+    if (!selectedId || !token || !currentUser?.id || !selected) return;
 
     setIsAccepting(true);
     setError(null);
@@ -303,52 +307,34 @@ export default function MessagesPage() {
     setIsAccepting(false);
   }
 
-  async function handleConfirmDelivery() {
-    if (!selectedId || !token || !currentUser?.id || !selected || !selectedWorkflow) return;
-
-    setIsConfirming(true);
+  async function handleRejectPurchase() {
+    if (!selectedId || !token) return;
+    setIsRejecting(true);
     setError(null);
-
-    const sendResponse = await sendSolicitudMessage(
-      selectedId,
-      createPickupConfirmSystemMessage(),
-      token
-    );
-
-    if (!sendResponse.ok) {
-      setError(sendResponse.error || "No se pudo registrar el recojo");
-      setIsConfirming(false);
+    const res = await rejectOrder(selectedId, token);
+    setIsRejecting(false);
+    if (!res.ok) {
+      setError(res.error || "No se pudo rechazar la solicitud");
       return;
     }
+    setConversations((prev) =>
+      prev.map((c) => c.id === selectedId ? { ...c, status: "rechazada" } : c)
+    );
+  }
 
-    const systemMessage: Message = {
-      id: `${selectedId}-${currentUser.id}-pickup-${Date.now()}`,
-      conversationId: selectedId,
-      senderId: currentUser.id,
-      text: createPickupConfirmSystemMessage(),
-      sentAt: new Date().toISOString(),
-      read: true,
-    };
-
-    const nextConversation: Conversation = {
-      ...selected,
-      messages: [...selected.messages, systemMessage],
-    };
-    const nextWorkflow = getConversationWorkflowState(nextConversation);
-
-    if (nextWorkflow.allPickedUp) {
-      const statusResponse = await updateSolicitudStatus(selectedId, "aceptada", token);
-      if (!statusResponse.ok) {
-        setError(statusResponse.error || "No se pudo actualizar el estado de la solicitud");
-        setIsConfirming(false);
-        return;
-      }
-      appendSystemMessage(selectedId, systemMessage, "aceptada");
-    } else {
-      appendSystemMessage(selectedId, systemMessage);
+  async function handleCancelPurchase() {
+    if (!selectedId || !token) return;
+    setIsCancelling(true);
+    setError(null);
+    const res = await cancelOrder(selectedId, token);
+    setIsCancelling(false);
+    if (!res.ok) {
+      setError(res.error || "No se pudo cancelar la solicitud");
+      return;
     }
-
-    setIsConfirming(false);
+    setConversations((prev) =>
+      prev.map((c) => c.id === selectedId ? { ...c, status: "cancelada" } : c)
+    );
   }
 
   async function handleOpenReview() {
@@ -446,7 +432,7 @@ export default function MessagesPage() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar conversaciones..."
+              placeholder="Buscar por libro o usuario..."
               className="w-full pl-8 pr-3 py-2 rounded-xl border border-border bg-muted/40 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-violet-300/60 focus:border-violet-400 focus:bg-white transition-all"
             />
           </div>
@@ -470,6 +456,7 @@ export default function MessagesPage() {
               const conversationBook = booksById[conversation.bookId];
               const isActive = conversation.id === selectedId;
 
+              const statusMeta = STATUS_META[conversation.status];
               return (
                 <button
                   key={conversation.id}
@@ -481,30 +468,38 @@ export default function MessagesPage() {
                       : "hover:bg-muted/40 border-l-2 border-l-transparent"
                   )}
                 >
-                  <div className="relative flex-shrink-0 mt-0.5">
-                    <Avatar src={conversationUser?.avatar} name={conversationUser?.name} size="md" />
+                  {/* Book cover */}
+                  <div className="flex-shrink-0 w-9 h-12 rounded-md overflow-hidden bg-muted ring-1 ring-border/60 mt-0.5">
+                    {conversationBook?.cover ? (
+                      <img src={conversationBook.cover} alt={conversationBook.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <BookCoverPlaceholder title={conversationBook?.title ?? "Libro"} />
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline justify-between gap-1 mb-0.5">
-                      <p className="text-sm font-medium text-foreground/90 truncate leading-none">
-                        {conversationUser?.name ?? "Usuario"}
+                    {/* Book title + time */}
+                    <div className="flex items-start justify-between gap-1 mb-1">
+                      <p className="text-xs font-semibold text-foreground/90 leading-tight line-clamp-2 flex-1">
+                        {conversationBook?.title ?? "Libro"}
                       </p>
-                      <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0">
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0 mt-0.5">
                         {conversation.lastMessageAt ? formatRelativeTime(conversation.lastMessageAt) : ""}
                       </span>
                     </div>
 
-                    {conversationBook && (
-                      <div className="flex items-center gap-1 mb-1">
-                        <BookOpen className="w-2.5 h-2.5 text-muted-foreground/50 flex-shrink-0" />
-                        <span className="text-[10px] text-muted-foreground/70 truncate">
-                          {conversationBook.title}
-                        </span>
-                      </div>
-                    )}
+                    {/* User + status badge */}
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Avatar src={conversationUser?.avatar} name={conversationUser?.name} size="xs" />
+                      <span className="text-[10px] text-muted-foreground truncate">
+                        {conversationUser?.name ?? "Usuario"}
+                      </span>
+                      <span className={cn("flex-shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border", statusMeta.class)}>
+                        {statusMeta.label}
+                      </span>
+                    </div>
 
-                    <p className="text-xs truncate leading-relaxed text-muted-foreground">
+                    <p className="text-[11px] truncate leading-relaxed text-muted-foreground/80">
                       {getConversationPreview(conversation)}
                     </p>
                   </div>
@@ -523,48 +518,86 @@ export default function MessagesPage() {
       >
         {selected ? (
           <>
-            <div className="h-14 flex-shrink-0 flex items-center gap-3 px-4 bg-white border-b border-border/60 shadow-sm">
+            <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-white border-b border-border/60 shadow-sm">
               <button
                 onClick={() => setMobileChat(false)}
-                className="lg:hidden p-1.5 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                className="lg:hidden p-1.5 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground flex-shrink-0"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
 
-              <Avatar src={peer?.avatar} name={peer?.name} size="sm" />
-
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground leading-none truncate">
-                  {peer?.name ?? "Usuario"}
-                </p>
-                {book && (
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <BookOpen className="w-2.5 h-2.5 text-violet-500 flex-shrink-0" />
-                    <span className="text-[11px] text-muted-foreground truncate">{book.title}</span>
-                  </div>
+              {/* Book cover */}
+              <div className="flex-shrink-0 w-8 h-11 rounded-md overflow-hidden bg-muted ring-1 ring-border/60">
+                {book?.cover ? (
+                  <img src={book.cover} alt={book.title} className="w-full h-full object-cover" />
+                ) : (
+                  <BookCoverPlaceholder title={book?.title ?? "Libro"} />
                 )}
               </div>
 
-              {selected.status === "pendiente" &&
-                currentUser?.id === selected.sellerId && (
+              {/* Book + peer info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground leading-tight truncate">
+                  {book?.title ?? "Libro"}
+                </p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <Avatar src={peer?.avatar} name={peer?.name} size="xs" />
+                  <span className="text-[11px] text-muted-foreground truncate">{peer?.name ?? "Usuario"}</span>
+                  {book?.author && (
+                    <span className="text-[11px] text-muted-foreground/50 truncate hidden sm:inline">· {book.author}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              {selected.status === "pendiente" && currentUser?.id === selected.sellerId && (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => void handleRejectPurchase()}
+                    disabled={isRejecting || isAccepting}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95",
+                      "border border-red-200 bg-red-50 text-red-600 hover:bg-red-100",
+                      "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                    )}
+                  >
+                    <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    {isRejecting ? "Rechazando..." : "Rechazar"}
+                  </button>
                   <button
                     onClick={() => void handleAcceptPurchase()}
-                    disabled={isAccepting}
+                    disabled={isAccepting || isRejecting}
                     className={cn(
-                      "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95",
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95",
                       "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm",
                       "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                     )}
                   >
                     <ShoppingCart className="w-3.5 h-3.5 flex-shrink-0" />
-                    {isAccepting ? "Aceptando..." : "Aceptar solicitud"}
+                    {isAccepting ? "Aceptando..." : "Aceptar"}
                   </button>
-                )}
+                </div>
+              )}
+
+              {selected.status === "pendiente" && currentUser?.id === selected.buyerId && (
+                <button
+                  onClick={() => void handleCancelPurchase()}
+                  disabled={isCancelling}
+                  className={cn(
+                    "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95",
+                    "border border-border bg-muted text-muted-foreground hover:bg-muted/80",
+                    "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                  )}
+                >
+                  <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  {isCancelling ? "Cancelando..." : "Cancelar"}
+                </button>
+              )}
 
               {selected.status === "aceptada" && (
-                <span className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                  Compra aceptada
+                  Aceptada
                 </span>
               )}
             </div>
@@ -623,19 +656,11 @@ export default function MessagesPage() {
             </div>
 
             {selected.status === "aceptada" && (
-              <div className="flex-shrink-0 mx-4 mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                    <PackageCheck className="w-4 h-4 text-emerald-700" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-emerald-900 leading-tight">
-                      Solicitud aceptada
-                    </p>
-                    <p className="text-xs text-emerald-700/70 mt-0.5">
-                      El vendedor aceptó la solicitud. Coordinen la entrega por este chat.
-                    </p>
-                  </div>
+              <div className="flex-shrink-0 mx-4 mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-emerald-900 leading-tight">Solicitud aceptada</p>
+                  <p className="text-xs text-emerald-700/70 mt-0.5">Coordinen la entrega por este hilo.</p>
                 </div>
               </div>
             )}
@@ -716,10 +741,8 @@ export default function MessagesPage() {
             )}
 
             {selected.status === "pendiente" && (
-              <div className="flex-shrink-0 mx-4 mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-4 h-4 text-amber-700" />
-                </div>
+              <div className="flex-shrink-0 mx-4 mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-center gap-2.5">
+                <Clock className="w-4 h-4 text-amber-700 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-semibold text-amber-900">Esperando respuesta del vendedor</p>
                   <p className="text-xs text-amber-700/70 mt-0.5">
@@ -731,42 +754,17 @@ export default function MessagesPage() {
               </div>
             )}
 
-            {selected.status === "pendiente" && selectedWorkflow?.allAccepted && (
-              <div className="flex-shrink-0 mx-4 mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                    <PackageCheck className="w-4 h-4 text-emerald-700" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-emerald-900 leading-tight">
-                      Compra confirmada por ambas partes
-                    </p>
-                    <p className="text-xs text-emerald-700/70 mt-0.5">
-                      {currentUser?.id === selected.buyerId
-                        ? selectedWorkflow.pickupByBuyer
-                          ? "Ya confirmaste recojo. Falta la otra parte."
-                          : "Cuando recibas el libro, confirma aqui."
-                        : selectedWorkflow.pickupBySeller
-                          ? "Ya confirmaste entrega. Falta la otra parte."
-                          : "Cuando entregues el libro, confirma aqui."}
-                    </p>
-                  </div>
-                </div>
-                {((currentUser?.id === selected.buyerId && !selectedWorkflow.pickupByBuyer) ||
-                  (currentUser?.id === selected.sellerId && !selectedWorkflow.pickupBySeller)) && (
-                  <button
-                    onClick={() => void handleConfirmDelivery()}
-                    disabled={isConfirming}
-                    className={cn(
-                      "flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-150 active:scale-95",
-                      "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-200/60",
-                      "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
-                    )}
-                  >
-                    <HandshakeIcon className="w-4 h-4 flex-shrink-0" />
-                    {isConfirming ? "Confirmando..." : "Ya recogi / entregue"}
-                  </button>
-                )}
+            {selected.status === "rechazada" && (
+              <div className="flex-shrink-0 mx-4 mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-2.5">
+                <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <p className="text-sm font-semibold text-red-900">Solicitud rechazada</p>
+              </div>
+            )}
+
+            {selected.status === "cancelada" && (
+              <div className="flex-shrink-0 mx-4 mb-3 rounded-2xl border border-border bg-muted/50 px-4 py-3 flex items-center gap-2.5">
+                <XCircle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <p className="text-sm font-semibold text-muted-foreground">Solicitud cancelada</p>
               </div>
             )}
 

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Library     from "@/pages/Library";
 import Landing from "@/pages/Landing";
@@ -13,6 +14,7 @@ import AddBook     from "@/pages/AddBook";
 import BookDetail  from "@/pages/BookDetail";
 import Exchanges         from "@/pages/Exchanges";
 import PendingDeliveries from "@/pages/PendingDeliveries";
+const Docs = lazy(() => import("@/pages/Docs"));
 import AuthLayout from "@/layouts/AuthLayout";
 import AppLayout from "@/layouts/AppLayout";
 import ProtectedRoute from "@/layouts/ProtectedRoute";
@@ -23,6 +25,7 @@ export default function App() {
     <Routes>
       {/* Public */}
       <Route path="/" element={<Landing />} />
+      <Route path="/docs" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen text-sm text-gray-400">Cargando documentación...</div>}><Docs /></Suspense>} />
 
       {/* Auth */}
       <Route element={<AuthLayout />}>

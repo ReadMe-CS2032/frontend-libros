@@ -1,5 +1,4 @@
-import type { ApiResponse, User, Review, Notification } from "@/types";
-import { USERS, REVIEWS, NOTIFICATIONS } from "@/data/mock";
+import type { ApiResponse, User, Review } from "@/types";
 import { mapBackendUser } from "@/api/auth";
 
 const USERS_API_URL =
@@ -7,8 +6,6 @@ const USERS_API_URL =
 const REVIEWS_API_URL =
   import.meta.env.VITE_API_URL?.trim() || "http://localhost:8006/api";
 
-const delay = (ms = 400) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 interface BackendZone {
   id: number;
@@ -112,22 +109,9 @@ export async function getCurrentUser(
 
 export async function getUserById(
   id: string,
-  token?: string
+  token: string
 ): Promise<ApiResponse<User>> {
-  if (token) {
-    return getProfileFromBackend(id, token);
-  }
-
-  await delay(350);
-  const user = USERS.find((u) => u.id === id);
-  if (!user) return fail(`User with id "${id}" not found`);
-  return ok(user);
-}
-
-export async function getUsers(): Promise<ApiResponse<User[]>> {
-  await delay();
-  // In production: GET /api/users
-  return ok(USERS);
+  return getProfileFromBackend(id, token);
 }
 
 export async function getZones(token: string): Promise<ApiResponse<ZoneOption[]>> {
@@ -235,181 +219,119 @@ export async function uploadProfilePhoto(
 
 export async function getReviewsForUser(
   userId: string,
-  token?: string
+  token: string
 ): Promise<ApiResponse<Review[]>> {
-  if (token) {
-    try {
-      const response = await fetch(`${REVIEWS_API_URL}/reviews/user/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  try {
+    const response = await fetch(`${REVIEWS_API_URL}/reviews/user/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-      const payload =
-        ((await response.json().catch(() => null)) as
-          | BackendReview[]
-          | { data?: BackendReview[]; detail?: string }
-          | null) ?? null;
+    const payload =
+      ((await response.json().catch(() => null)) as
+        | BackendReview[]
+        | { data?: BackendReview[]; detail?: string }
+        | null) ?? null;
 
-      if (!response.ok) {
-        return fail(
-          payload &&
-            typeof payload === "object" &&
-            !Array.isArray(payload) &&
-            payload.detail
-            ? payload.detail
-            : "No se pudieron obtener las reseñas"
-        );
-      }
-
-      const list = Array.isArray(payload)
-        ? payload
-        : Array.isArray((payload as { data?: BackendReview[] })?.data)
-          ? (payload as { data: BackendReview[] }).data
-          : [];
-
-      return ok(list.map(mapBackendReview));
-    } catch {
-      return fail("No se pudo conectar con el servicio de reviews");
+    if (!response.ok) {
+      return fail(
+        payload &&
+          typeof payload === "object" &&
+          !Array.isArray(payload) &&
+          payload.detail
+          ? payload.detail
+          : "No se pudieron obtener las reseñas"
+      );
     }
-  }
 
-  await delay(350);
-  const reviews = REVIEWS.filter((r) => r.reviewedUserId === userId);
-  return ok(reviews);
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray((payload as { data?: BackendReview[] })?.data)
+        ? (payload as { data: BackendReview[] }).data
+        : [];
+
+    return ok(list.map(mapBackendReview));
+  } catch {
+    return fail("No se pudo conectar con el servicio de reviews");
+  }
 }
 
 export async function createReview(
   payload: Omit<Review, "id" | "createdAt" | "reviewerId">,
-  token?: string
+  token: string
 ): Promise<ApiResponse<Review>> {
-  if (token) {
-    try {
-      const response = await fetch(`${REVIEWS_API_URL}/reviews`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          target_user_id: Number(payload.reviewedUserId),
-          transaction_id: payload.transactionId,
-          rating: payload.rating,
-          comment: payload.comment,
-        }),
-      });
+  try {
+    const response = await fetch(`${REVIEWS_API_URL}/reviews`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        target_user_id: Number(payload.reviewedUserId),
+        transaction_id: payload.transactionId,
+        rating: payload.rating,
+        comment: payload.comment,
+      }),
+    });
 
-      const payloadJson =
-        ((await response.json().catch(() => null)) as
-          | { id?: string; detail?: string }
-          | null) ?? null;
+    const payloadJson =
+      ((await response.json().catch(() => null)) as
+        | { id?: string; detail?: string }
+        | null) ?? null;
 
-      if (!response.ok) {
-        return fail(payloadJson?.detail || "No se pudo crear la reseña");
-      }
-
-      return ok({
-        ...payload,
-        id: payloadJson?.id ?? `r-${Date.now()}`,
-        reviewerId: "",
-        createdAt: new Date().toISOString(),
-      });
-    } catch {
-      return fail("No se pudo conectar con el servicio de reviews");
+    if (!response.ok) {
+      return fail(payloadJson?.detail || "No se pudo crear la reseña");
     }
-  }
 
-  await delay(600);
-  const review: Review = {
-    ...payload,
-    id: `r${Date.now()}`,
-    reviewerId: "",
-    createdAt: new Date().toISOString().split("T")[0],
-  };
-  // In production: POST /api/reviews
-  return ok(review);
+    return ok({
+      ...payload,
+      id: payloadJson?.id ?? `r-${Date.now()}`,
+      reviewerId: "",
+      createdAt: new Date().toISOString(),
+    });
+  } catch {
+    return fail("No se pudo conectar con el servicio de reviews");
+  }
 }
 
 export async function getReviewStatsForUser(
   userId: string,
-  token?: string
+  token: string
 ): Promise<ApiResponse<ReviewStats>> {
-  if (token) {
-    try {
-      const response = await fetch(`${REVIEWS_API_URL}/reviews/stats/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  try {
+    const response = await fetch(`${REVIEWS_API_URL}/reviews/stats/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-      const payload =
-        ((await response.json().catch(() => null)) as
-          | BackendReviewStats
-          | { detail?: string }
-          | null) ?? null;
+    const payload =
+      ((await response.json().catch(() => null)) as
+        | BackendReviewStats
+        | { detail?: string }
+        | null) ?? null;
 
-      if (!response.ok) {
-        return fail(
-          payload &&
-            typeof payload === "object" &&
-            "detail" in payload &&
-            payload.detail
-            ? payload.detail
-            : "No se pudieron obtener las estadísticas de reseñas"
-        );
-      }
-
-      return ok({
-        averageRating:
-          payload && typeof payload === "object" && "average_rating" in payload
-            ? Number(payload.average_rating ?? 0)
-            : 0,
-        totalReviews:
-          payload && typeof payload === "object" && "total_reviews" in payload
-            ? Number(payload.total_reviews ?? 0)
-            : 0,
-      });
-    } catch {
-      return fail("No se pudo conectar con el servicio de reviews");
+    if (!response.ok) {
+      return fail(
+        payload &&
+          typeof payload === "object" &&
+          "detail" in payload &&
+          payload.detail
+          ? payload.detail
+          : "No se pudieron obtener las estadísticas de reseñas"
+      );
     }
+
+    return ok({
+      averageRating:
+        payload && typeof payload === "object" && "average_rating" in payload
+          ? Number(payload.average_rating ?? 0)
+          : 0,
+      totalReviews:
+        payload && typeof payload === "object" && "total_reviews" in payload
+          ? Number(payload.total_reviews ?? 0)
+          : 0,
+    });
+  } catch {
+    return fail("No se pudo conectar con el servicio de reviews");
   }
-
-  const reviews = REVIEWS.filter((review) => review.reviewedUserId === userId);
-  const averageRating =
-    reviews.length > 0
-      ? reviews.reduce((total, review) => total + review.rating, 0) / reviews.length
-      : 0;
-
-  return ok({
-    averageRating,
-    totalReviews: reviews.length,
-  });
 }
 
-export async function getNotifications(
-  userId: string
-): Promise<ApiResponse<Notification[]>> {
-  await delay(300);
-  const notifications = NOTIFICATIONS.filter((n) => n.userId === userId);
-  return ok(notifications);
-}
-
-export async function markNotificationRead(
-  id: string
-): Promise<ApiResponse<boolean>> {
-  await delay(200);
-  const exists = NOTIFICATIONS.some((n) => n.id === id);
-  if (!exists) return fail(`Notification "${id}" not found`);
-  // In production: PATCH /api/notifications/:id/read
-  return ok(true);
-}
-
-export async function markAllNotificationsRead(
-  userId: string
-): Promise<ApiResponse<boolean>> {
-  await delay(300);
-  const count = NOTIFICATIONS.filter((n) => n.userId === userId).length;
-  if (count === 0) return fail("No notifications found for this user");
-  // In production: POST /api/notifications/read-all
-  return ok(true);
-}
