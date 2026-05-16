@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUIStore } from "@/store/useUIStore";
-import { cn } from "@/lib/utils";
+
 import Avatar from "@/components/shared/Avatar";
 
 // ─── Breadcrumb config ────────────────────────────────────────────────────────

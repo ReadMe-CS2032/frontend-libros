@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { getBookById } from "@/api/books";
-import { getSolicitudesByUser, getSolicitudById, sendSolicitudMessage, updateSolicitudStatus } from "@/api/solicitudes";
+import { getSolicitudesByUser, getSolicitudById, sendSolicitudMessage } from "@/api/solicitudes";
 import { getUserById, createReview, getReviewsForUser } from "@/api/users";
 import { acceptOrder, rejectOrder, cancelOrder } from "@/api/orders";
 import { getTransactionsByBook } from "@/api/transactions";
@@ -456,7 +456,7 @@ export default function MessagesPage() {
               const conversationBook = booksById[conversation.bookId];
               const isActive = conversation.id === selectedId;
 
-              const statusMeta = STATUS_META[conversation.status];
+              const statusMeta = STATUS_META[conversation.status ?? "pendiente"] ?? STATUS_META["pendiente"];
               return (
                 <button
                   key={conversation.id}
