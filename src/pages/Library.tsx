@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Library, BookMarked, Eye, Bookmark, TrendingUp,
-  Tag, Repeat2, BookLock, Edit2, MapPin, Gift, Trash2, EyeOff,
+  Tag, Repeat2, BookLock, Edit2, MapPin, Gift, Trash2,
 } from "lucide-react";
 import BookCoverPlaceholder from "@/components/shared/BookCoverPlaceholder";
+import EditBookModal from "@/components/shared/EditBookModal";
 import { useAuthStore } from "@/store/useAuthStore";
-import { deleteBook, getBooksByOwner, updateBook, updateBookAvailability } from "@/api/books";
+import { deleteBook, getBooksByOwner } from "@/api/books";
 import { getTransactionsByUser } from "@/api/transactions";
 import type { Book, Transaction } from "@/types";
 import {
@@ -47,6 +48,7 @@ export default function LibraryPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [busyBookId, setBusyBookId] = useState<string | null>(null);
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
 
   useEffect(() => {
     if (!user?.id || !token) return;
@@ -79,7 +81,9 @@ export default function LibraryPage() {
     };
   }, [token, user?.id]);
 
-  const published = books.length;
+  const visibleBooks = useMemo(() => books.filter((b) => b.available !== false), [books]);
+
+  const published = visibleBooks.length;
 
   const reservedBookIds = useMemo(
     () =>
@@ -93,18 +97,18 @@ export default function LibraryPage() {
 
   const filteredBooks = useMemo(() => {
     switch (activeTab) {
-      case "sell":     return books.filter((b) => b.mode === "sell");
-      case "exchange": return books.filter((b) => b.mode === "exchange");
-      case "reserved": return books.filter((b) => reservedBookIds.has(b.id));
-      default:         return books;
+      case "sell":     return visibleBooks.filter((b) => b.mode === "sell");
+      case "exchange": return visibleBooks.filter((b) => b.mode === "exchange");
+      case "reserved": return visibleBooks.filter((b) => reservedBookIds.has(b.id));
+      default:         return visibleBooks;
     }
-  }, [activeTab, books, reservedBookIds]);
+  }, [activeTab, visibleBooks, reservedBookIds]);
 
   const tabs = [
-    { value: "all" as const, label: "Todos", icon: BookMarked, count: books.length },
-    { value: "sell" as const, label: "Venta", icon: Tag, count: books.filter((b) => b.mode === "sell").length },
-    { value: "exchange" as const, label: "Intercambio", icon: Repeat2, count: books.filter((b) => b.mode === "exchange").length },
-    { value: "reserved" as const, label: "Transado", icon: BookLock, count: books.filter((b) => reservedBookIds.has(b.id)).length },
+    { value: "all" as const, label: "Todos", icon: BookMarked, count: visibleBooks.length },
+    { value: "sell" as const, label: "Venta", icon: Tag, count: visibleBooks.filter((b) => b.mode === "sell").length },
+    { value: "exchange" as const, label: "Intercambio", icon: Repeat2, count: visibleBooks.filter((b) => b.mode === "exchange").length },
+    { value: "reserved" as const, label: "Transado", icon: BookLock, count: visibleBooks.filter((b) => reservedBookIds.has(b.id)).length },
   ];
 
   const stats = [
@@ -134,68 +138,13 @@ export default function LibraryPage() {
     },
   ];
 
-  async function handleEditBook(book: Book) {
-    if (!token) return;
-
-    const title = window.prompt("Nuevo titulo", book.title);
-    if (title === null) return;
-
-    const author = window.prompt("Nuevo autor", book.author);
-    if (author === null) return;
-
-    const description = window.prompt("Nueva descripcion", book.description);
-    if (description === null) return;
-
-    const nextPriceValue = window.prompt(
-      "Nuevo precio. Dejalo vacio para quitarlo",
-      book.price != null ? String(book.price) : ""
-    );
-    if (nextPriceValue === null) return;
-
-    const nextPrice =
-      nextPriceValue.trim() === "" ? undefined : Number(nextPriceValue.trim());
-
-    setBusyBookId(book.id);
-    const response = await updateBook(
-      book.id,
-      {
-        title: title.trim(),
-        author: author.trim(),
-        description: description.trim(),
-        price: Number.isNaN(nextPrice as number) ? book.price : nextPrice,
-      },
-      token
-    );
-    setBusyBookId(null);
-
-    if (!response.ok) {
-      window.alert(response.error || "No se pudo editar el libro");
-      return;
-    }
-
-    setBooks((current) =>
-      current.map((item) => (item.id === book.id ? response.data : item))
-    );
+  function handleEditBook(book: Book) {
+    setEditingBook(book);
   }
 
-  async function handleToggleAvailability(book: Book) {
-    if (!token) return;
-
-    setBusyBookId(book.id);
-    const response = await updateBookAvailability(
-      book.id,
-      !(book.available ?? true),
-      token
-    );
-    setBusyBookId(null);
-
-    if (!response.ok) {
-      window.alert(response.error || "No se pudo actualizar la disponibilidad");
-      return;
-    }
-
+  function handleBookSaved(updated: Book) {
     setBooks((current) =>
-      current.map((item) => (item.id === book.id ? response.data : item))
+      current.map((item) => (item.id === updated.id ? updated : item))
     );
   }
 
@@ -286,11 +235,20 @@ export default function LibraryPage() {
             isReserved={reservedBookIds.has(book.id)}
             onDelete={() => handleDeleteBook(book)}
             onEdit={() => handleEditBook(book)}
-            onToggleAvailability={() => handleToggleAvailability(book)}
             onView={() => navigate(`/libro/${book.id}`)}
           />
         ))}
       </div>
+
+      {/* ── Edit modal ────────────────────────────────────────────────────── */}
+      {editingBook && token && (
+        <EditBookModal
+          book={editingBook}
+          token={token}
+          onClose={() => setEditingBook(null)}
+          onSaved={handleBookSaved}
+        />
+      )}
 
     </div>
   );
@@ -304,7 +262,6 @@ interface LibraryBookCardProps {
   isReserved: boolean;
   onDelete: () => void;
   onEdit: () => void;
-  onToggleAvailability: () => void;
   onView: () => void;
 }
 
@@ -314,7 +271,6 @@ function LibraryBookCard({
   isReserved,
   onDelete,
   onEdit,
-  onToggleAvailability,
   onView,
 }: LibraryBookCardProps) {
   const ModeIcon = MODE_ICONS[book.mode] ?? Tag;
@@ -412,21 +368,12 @@ function LibraryBookCard({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 pt-2">
-          <button
-            type="button"
-            disabled={isBusy}
-            onClick={onToggleAvailability}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border px-2 py-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted/50 hover:text-foreground disabled:opacity-50"
-          >
-            <EyeOff className="w-3 h-3" />
-            {book.available === false ? "Activar" : "Ocultar"}
-          </button>
+        <div className="pt-2">
           <button
             type="button"
             disabled={isBusy}
             onClick={onDelete}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-200 px-2 py-2 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+            className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-200 px-2 py-2 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
           >
             <Trash2 className="w-3 h-3" />
             Eliminar
