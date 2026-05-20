@@ -233,7 +233,7 @@ export async function getBooksByOwner(
 ): Promise<ApiResponse<Book[]>> {
   try {
     const raw = await requestJson<PageResponse<BackendBook>>(`/books/user/${ownerId}?page=1&size=100`, token);
-    const books = extractList(raw);
+    const books = extractList(raw).filter((b) => b.active !== false);
     const mapped = books.map(mapBackendBook);
     return ok(mapped, mapped.length);
   } catch (error) {
